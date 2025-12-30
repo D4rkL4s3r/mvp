@@ -20,6 +20,27 @@ A smart `mv` replacement that shows progress bars, supports previews, and intell
 
 ### Installation
 
+#### Quick Install (Recommended)
+
+```bash
+# Clone the repository
+git clone https://github.com/D4rkL4s3r/mvp.git
+cd mvp
+
+# Run the installation script
+chmod +x install.sh
+./install.sh
+```
+
+#### Install from GitHub directly
+
+```bash
+# Download and run the installer
+curl -fsSL https://raw.githubusercontent.com/D4rkL4s3r/mvp/main/install.sh | bash -s install-remote
+```
+
+#### Manual Installation
+
 ```bash
 # Download the script
 curl -o mvp https://raw.githubusercontent.com/D4rkL4s3r/mvp/main/mvp
@@ -27,17 +48,18 @@ curl -o mvp https://raw.githubusercontent.com/D4rkL4s3r/mvp/main/mvp
 # Make it executable
 chmod +x mvp
 
-# Move to PATH (optional)
+# Move to PATH
 sudo mv mvp /usr/local/bin/
 ```
 
-Or clone the repository:
+#### Uninstall
 
 ```bash
-git clone https://github.com/D4rkL4s3r/mvp.git
-cd mvp
-chmod +x mvp
-sudo cp mvp /usr/local/bin/
+# Using the install script
+./install.sh uninstall
+
+# Or using the dedicated uninstall script
+./uninstall.sh
 ```
 
 ### Requirements
@@ -136,6 +158,17 @@ mvp -q -v folder/ /backup/
 - Shows **progress bar** and **ETA**
 - Safely copies then removes source
 - Cleans up empty directories
+
+## 📁 Repository Structure
+
+```
+mvp/
+├── README.md          # This file
+├── mvp                # Main script
+├── install.sh         # Installation script
+├── uninstall.sh       # Uninstallation script
+└── LICENSE            # MIT License
+```
 
 ## 📊 Output Examples
 
