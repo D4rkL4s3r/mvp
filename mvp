@@ -117,7 +117,9 @@ get_size() {
 
 format_size() {
     local size=$1
-    if [ $size -lt 1024 ]; then
+    if [ -z "$size" ] || [ "$size" -eq 0 ]; then
+        echo "0B"
+    elif [ $size -lt 1024 ]; then
         echo "${size}B"
     elif [ $size -lt 1048576 ]; then
         echo "$(( size / 1024 ))KB"
@@ -141,7 +143,9 @@ calculate_total_size() {
 
 format_time() {
     local seconds=$1
-    if [ $seconds -lt 60 ]; then
+    if [ -z "$seconds" ] || [ "$seconds" -eq 0 ]; then
+        echo "0s"
+    elif [ $seconds -lt 60 ]; then
         echo "${seconds}s"
     elif [ $seconds -lt 3600 ]; then
         local mins=$((seconds / 60))
@@ -251,16 +255,16 @@ for source in "${SOURCES[@]}"; do
 done
 
 if [ "$QUIET" = false ] && [ "$PREVIEW" = false ]; then
-    local end_time=$(date +%s)
-    local total_time=$((end_time - START_TIME))
-    local time_fmt=$(format_time $total_time)
+    end_time=$(date +%s)
+    total_time=$((end_time - START_TIME))
+    time_fmt=$(format_time $total_time)
     
     echo ""
     echo "${COLOR_GREEN}=========================================${COLOR_RESET}"
     echo "${COLOR_BOLD}${COLOR_GREEN}Move completed in $time_fmt!${COLOR_RESET}"
     
     if [ $total_time -gt 0 ]; then
-        local avg_speed=$((TOTAL_SIZE / total_time))
+        avg_speed=$((TOTAL_SIZE / total_time))
         echo "${COLOR_BLUE}Average speed:${COLOR_RESET} ${COLOR_BOLD}$(format_size $avg_speed)/s${COLOR_RESET}"
     fi
     
