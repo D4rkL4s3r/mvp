@@ -2,6 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Bash](https://img.shields.io/badge/Bash-4.0+-green.svg)](https://www.gnu.org/software/bash/)
+[![Version](https://img.shields.io/badge/version-1.3-blue.svg)](https://github.com/YOUR_USERNAME/mvp)
 
 A smart `mv` replacement that shows progress bars, supports previews, and intelligently handles cross-filesystem moves.
 
@@ -16,6 +17,9 @@ A smart `mv` replacement that shows progress bars, supports previews, and intell
 - 🚀 **Smart detection** - instant move on same filesystem, progress on different ones
 - ⏱️ **Time estimation** - ETA and speed calculation
 - 📦 **Multiple files** support
+- ⚙️ **Configuration file** - Customize default behavior with `~/.mvprc`
+- 🛡️ **Large file confirmation** - Optional confirmation for files exceeding a size threshold
+- 🚫 **Auto-exclusion** - Skip unwanted files (`.DS_Store`, `.git`, etc.) automatically
 
 ## 🚀 Quick Start
 
@@ -149,6 +153,71 @@ mvp -q -v folder/ /backup/
 mvp --no-color file.txt /destination/
 ```
 
+## 🚀 Advanced Usage
+
+### Large File Confirmation
+
+Prevent accidental moves of large files:
+
+```bash
+# In ~/.mvprc
+CONFIRM_LARGE_MOVES=true
+LARGE_FILE_THRESHOLD=1073741824  # 1 GB
+
+# When moving a large file:
+$ mvp bigfile.iso /backup/
+
+Warning: Large file/directory detected
+  bigfile.iso (4.2GB)
+
+Continue with move? (y/N): 
+```
+
+### Auto-Exclusion Patterns
+
+Skip unwanted files automatically:
+
+```bash
+# In ~/.mvprc
+EXCLUDE_PATTERNS=".DS_Store,Thumbs.db,.git,*.tmp,*.cache"
+
+# Move a directory
+$ mvp -v project/ /backup/
+
+Excluded: project/.DS_Store (matches pattern)
+Excluded: project/.git (matches pattern)
+Moving: project/src -> /backup/project/src
+Moving: project/README.md -> /backup/project/README.md
+```
+
+### Bandwidth Limiting
+
+Limit transfer speed for cross-filesystem moves:
+
+```bash
+# In ~/.mvprc
+RSYNC_BANDWIDTH_LIMIT=5000  # 5 MB/s
+
+# Or use extra rsync options
+RSYNC_EXTRA_OPTIONS="--compress --partial"
+```
+
+### Scripting with mvp
+
+```bash
+#!/bin/bash
+
+# Disable colors and confirmations for scripts
+mvp --no-color large_backup.tar.gz /mnt/backup/
+
+# Check exit code
+if [ $? -eq 0 ]; then
+    echo "Backup moved successfully"
+else
+    echo "Backup move failed"
+fi
+```
+
 ## 🎨 Color Output
 
 `mvp` uses colors to make output more readable and informative:
@@ -164,6 +233,95 @@ Colors are automatically disabled when:
 - Output is piped or redirected
 - Terminal doesn't support colors
 - `--no-color` flag is used
+
+## ⚙️ Configuration File
+
+`mvp` supports a configuration file at `~/.mvprc` to customize default behavior.
+
+### Creating Your Config
+
+```bash
+# Copy the example configuration
+cp .mvprc.example ~/.mvprc
+
+# Edit to your preferences
+nano ~/.mvprc
+```
+
+### Available Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `COLOR` | `true/false` | `true` | Enable colored output |
+| `VERBOSE` | `true/false` | `false` | Enable verbose mode by default |
+| `QUIET` | `true/false` | `false` | Enable quiet mode by default |
+| `RSYNC_BANDWIDTH_LIMIT` | number | unset | Limit bandwidth in KB/s (e.g., `5000` = 5 MB/s) |
+| `RSYNC_EXTRA_OPTIONS` | string | unset | Additional rsync options (e.g., `"--compress"`) |
+| `CONFIRM_LARGE_MOVES` | `true/false` | `false` | Ask before moving large files |
+| `LARGE_FILE_THRESHOLD` | number | `1073741824` | Size threshold in bytes (default: 1 GB) |
+| `EXCLUDE_PATTERNS` | string | unset | Comma-separated patterns to exclude (e.g., `".DS_Store,*.tmp"`) |
+
+### Example Configuration
+
+```bash
+# ~/.mvprc
+
+# Display preferences
+COLOR=true
+VERBOSE=false
+
+# Performance
+RSYNC_BANDWIDTH_LIMIT=5000  # Limit to 5 MB/s
+
+# Safety
+CONFIRM_LARGE_MOVES=true
+LARGE_FILE_THRESHOLD=536870912  # 512 MB
+
+# Auto-exclude system files
+EXCLUDE_PATTERNS=".DS_Store,Thumbs.db,.git,.svn,*.tmp"
+```
+
+### Viewing Current Config
+
+```bash
+mvp --config
+```
+
+Output:
+```
+=========================================
+Current Configuration
+=========================================
+
+Config file: /home/user/.mvprc
+Status: Found
+
+Active settings:
+  COLOR:                  true
+  VERBOSE:                false
+  QUIET:                  false
+  RSYNC_BANDWIDTH_LIMIT:  5000
+  RSYNC_EXTRA_OPTIONS:    not set
+  CONFIRM_LARGE_MOVES:    true
+  LARGE_FILE_THRESHOLD:   512 MB
+  EXCLUDE_PATTERNS:       .DS_Store,Thumbs.db,.git
+
+=========================================
+```
+
+### Priority Order
+
+Settings are applied in this order (later overrides earlier):
+1. Default values
+2. Config file (`~/.mvprc`)
+3. Command-line arguments
+
+Example:
+```bash
+# Config has VERBOSE=true
+mvp file.txt /dest/        # Verbose mode ON
+mvp -q file.txt /dest/     # Quiet mode ON (overrides config)
+```
 
 ## 🔧 How It Works
 
@@ -186,6 +344,7 @@ Colors are automatically disabled when:
 mvp/
 ├── README.md          # This file
 ├── mvp                # Main script
+├── .mvprc.example     # Example configuration file
 ├── install.sh         # Installation script
 ├── uninstall.sh       # Uninstallation script
 └── LICENSE            # MIT License
@@ -237,8 +396,35 @@ Total: 1 | Success: 1 | Failed: 0
 | Time estimation | ❌ | ✅ |
 | Speed calculation | ❌ | ✅ |
 | Colored output | ❌ | ✅ |
+| Configuration file | ❌ | ✅ |
+| Large file confirmation | ❌ | ✅ |
+| Auto-exclusion patterns | ❌ | ✅ |
 | Wildcard support | ✅ | ✅ |
 | Verbose output | ⚠️ Limited | ✅ Full |
+
+## 📝 Changelog
+
+### v1.3 (Current)
+- ✅ Added configuration file support (`~/.mvprc`)
+- ✅ Large file confirmation with customizable threshold
+- ✅ Auto-exclusion patterns for unwanted files
+- ✅ Bandwidth limiting for cross-filesystem transfers
+- ✅ Custom rsync options support
+
+### v1.2
+- ✅ Configuration file system
+- ✅ `--config` flag to view settings
+
+### v1.1
+- ✅ Colored output with auto-detection
+- ✅ `--no-color` flag
+
+### v1.0
+- ✅ Initial release
+- ✅ Progress bars
+- ✅ Preview mode
+- ✅ Time estimation
+- ✅ Cross-filesystem detection
 
 ## 🤝 Contributing
 
@@ -268,10 +454,12 @@ If you encounter any issues or have questions:
 ## 🗺️ Roadmap
 
 - [x] Add color output support
-- [ ] Implement parallel transfers for multiple files
-- [ ] Add resume capability for interrupted transfers
-- [ ] Support for remote destinations (SSH)
-- [ ] Configuration file support (~/.mvprc)
+- [x] Configuration file support
+- [x] Large file confirmation
+- [x] Auto-exclusion patterns
+- [ ] SSH/Remote destination support
+- [ ] Parallel transfers for multiple files
+- [ ] Resume capability for interrupted transfers
 - [ ] Progress bar customization options
 
 ---
