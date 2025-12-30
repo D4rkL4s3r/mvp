@@ -1,0 +1,245 @@
+#!/bin/bash
+
+VERSION="1.0"
+PREVIEW=false
+QUIET=false
+VERBOSE=false
+
+show_help() {
+    cat << EOF
+mvp - Move with Progress v${VERSION}
+
+Usage: mvp [options] source(s) destination
+
+Options:
+    -p, --preview    Preview operations without executing
+    -q, --quiet      Suppress progress output
+    -v, --verbose    Verbose output
+    -h, --help       Show this help message
+
+Examples:
+    mvp file.txt /destination/
+    mvp source/* /destination/
+    mvp -p *.log /backup/
+    mvp -q large_file.iso /media/
+
+EOF
+}
+
+ARGS=()
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -p|--preview)
+            PREVIEW=true
+            shift
+            ;;
+        -q|--quiet)
+            QUIET=true
+            shift
+            ;;
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+if [ ${#ARGS[@]} -lt 2 ]; then
+    echo "Error: Missing arguments"
+    show_help
+    exit 1
+fi
+
+DEST="${ARGS[-1]}"
+unset 'ARGS[-1]'
+SOURCES=("${ARGS[@]}")
+
+if [ ${#SOURCES[@]} -gt 1 ] || [ -d "$DEST" ]; then
+    if [ ! -d "$DEST" ]; then
+        echo "Error: Destination must be a directory when moving multiple files"
+        exit 1
+    fi
+fi
+
+same_filesystem() {
+    local src="$1"
+    local dst="$2"
+    
+    src_fs=$(df "$src" 2>/dev/null | tail -1 | awk '{print $1}')
+    dst_fs=$(df "$dst" 2>/dev/null | tail -1 | awk '{print $1}')
+    
+    [ "$src_fs" = "$dst_fs" ]
+}
+
+get_size() {
+    du -sb "$1" 2>/dev/null | awk '{print $1}'
+}
+
+format_size() {
+    local size=$1
+    if [ $size -lt 1024 ]; then
+        echo "${size}B"
+    elif [ $size -lt 1048576 ]; then
+        echo "$(( size / 1024 ))KB"
+    elif [ $size -lt 1073741824 ]; then
+        echo "$(( size / 1048576 ))MB"
+    else
+        echo "$(( size / 1073741824 ))GB"
+    fi
+}
+
+calculate_total_size() {
+    local total=0
+    for src in "${SOURCES[@]}"; do
+        if [ -e "$src" ]; then
+            local size=$(get_size "$src")
+            total=$((total + size))
+        fi
+    done
+    echo $total
+}
+
+format_time() {
+    local seconds=$1
+    if [ $seconds -lt 60 ]; then
+        echo "${seconds}s"
+    elif [ $seconds -lt 3600 ]; then
+        local mins=$((seconds / 60))
+        local secs=$((seconds % 60))
+        echo "${mins}m ${secs}s"
+    else
+        local hours=$((seconds / 3600))
+        local mins=$(((seconds % 3600) / 60))
+        echo "${hours}h ${mins}m"
+    fi
+}
+
+START_TIME=0
+TOTAL_SIZE=0
+PROCESSED_SIZE=0
+
+move_item() {
+    local src="$1"
+    local dst="$2"
+    
+    local final_dest="$dst"
+    if [ -d "$dst" ]; then
+        final_dest="$dst/$(basename "$src")"
+    fi
+    
+    if [ ! -e "$src" ]; then
+        [ "$QUIET" = false ] && echo "Warning: $src does not exist, skipping"
+        return 1
+    fi
+    
+    local item_size=$(get_size "$src")
+    
+    if [ "$PREVIEW" = true ]; then
+        local size_fmt=$(format_size $item_size)
+        echo "[PREVIEW] Would move: $src -> $final_dest ($size_fmt)"
+        return 0
+    fi
+    
+    if [ "$QUIET" = false ]; then
+        local size_fmt=$(format_size $item_size)
+        echo "Moving: $src -> $final_dest ($size_fmt)"
+    fi
+    
+    if same_filesystem "$src" "$(dirname "$final_dest")"; then
+        [ "$VERBOSE" = true ] && echo "  → Same filesystem, instant move"
+        mv "$src" "$final_dest"
+        PROCESSED_SIZE=$((PROCESSED_SIZE + item_size))
+    else
+        [ "$VERBOSE" = true ] && echo "  → Cross-filesystem, copying with progress..."
+        
+        if [ "$QUIET" = true ]; then
+            rsync -a --remove-source-files "$src" "$final_dest" 2>/dev/null
+        else
+            if [ $TOTAL_SIZE -gt 0 ] && [ $PROCESSED_SIZE -gt 0 ]; then
+                local elapsed=$(($(date +%s) - START_TIME))
+                local speed=$((PROCESSED_SIZE / elapsed))
+                if [ $speed -gt 0 ]; then
+                    local remaining=$((TOTAL_SIZE - PROCESSED_SIZE))
+                    local eta=$((remaining / speed))
+                    local eta_fmt=$(format_time $eta)
+                    echo "  ETA: $eta_fmt ($(format_size $speed)/s)"
+                fi
+            fi
+            
+            rsync -ah --progress --remove-source-files "$src" "$final_dest"
+        fi
+        
+        PROCESSED_SIZE=$((PROCESSED_SIZE + item_size))
+        
+        if [ -d "$src" ]; then
+            find "$src" -type d -empty -delete 2>/dev/null
+        fi
+    fi
+    
+    return $?
+}
+
+TOTAL_FILES=${#SOURCES[@]}
+SUCCESS_COUNT=0
+FAIL_COUNT=0
+
+if [ "$PREVIEW" = false ]; then
+    START_TIME=$(date +%s)
+    TOTAL_SIZE=$(calculate_total_size)
+    
+    if [ "$QUIET" = false ]; then
+        echo "Total size to move: $(format_size $TOTAL_SIZE)"
+        echo ""
+    fi
+fi
+
+if [ "$PREVIEW" = true ]; then
+    TOTAL_SIZE=$(calculate_total_size)
+    echo "========================================="
+    echo "PREVIEW MODE - No files will be moved"
+    echo "Total size: $(format_size $TOTAL_SIZE)"
+    echo "========================================="
+    echo ""
+fi
+
+for source in "${SOURCES[@]}"; do
+    if move_item "$source" "$DEST"; then
+        ((SUCCESS_COUNT++))
+    else
+        ((FAIL_COUNT++))
+    fi
+done
+
+if [ "$QUIET" = false ] && [ "$PREVIEW" = false ]; then
+    local end_time=$(date +%s)
+    local total_time=$((end_time - START_TIME))
+    local time_fmt=$(format_time $total_time)
+    
+    echo ""
+    echo "========================================="
+    echo "Move completed in $time_fmt!"
+    
+    if [ $total_time -gt 0 ]; then
+        local avg_speed=$((TOTAL_SIZE / total_time))
+        echo "Average speed: $(format_size $avg_speed)/s"
+    fi
+    
+    echo "Total: $TOTAL_FILES | Success: $SUCCESS_COUNT | Failed: $FAIL_COUNT"
+    echo "========================================="
+elif [ "$PREVIEW" = true ]; then
+    echo ""
+    echo "========================================="
+    echo "Preview completed - $TOTAL_FILES items would be moved"
+    echo "Estimated size: $(format_size $TOTAL_SIZE)"
+    echo "========================================="
+fi
+
+exit $([ $FAIL_COUNT -eq 0 ] && echo 0 || echo 1)
