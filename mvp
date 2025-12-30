@@ -1,9 +1,29 @@
 #!/bin/bash
 
-VERSION="1.0"
+VERSION="1.1"
 PREVIEW=false
 QUIET=false
 VERBOSE=false
+COLOR=true
+
+if [[ -t 1 ]] && command -v tput &> /dev/null; then
+    COLOR_RESET=$(tput sgr0)
+    COLOR_BOLD=$(tput bold)
+    COLOR_RED=$(tput setaf 1)
+    COLOR_GREEN=$(tput setaf 2)
+    COLOR_YELLOW=$(tput setaf 3)
+    COLOR_BLUE=$(tput setaf 4)
+    COLOR_CYAN=$(tput setaf 6)
+else
+    COLOR=false
+    COLOR_RESET=""
+    COLOR_BOLD=""
+    COLOR_RED=""
+    COLOR_GREEN=""
+    COLOR_YELLOW=""
+    COLOR_BLUE=""
+    COLOR_CYAN=""
+fi
 
 show_help() {
     cat << EOF
@@ -12,10 +32,11 @@ mvp - Move with Progress v${VERSION}
 Usage: mvp [options] source(s) destination
 
 Options:
-    -p, --preview    Preview operations without executing
-    -q, --quiet      Suppress progress output
-    -v, --verbose    Verbose output
-    -h, --help       Show this help message
+    -p, --preview     Preview operations without executing
+    -q, --quiet       Suppress progress output
+    -v, --verbose     Verbose output
+    --no-color        Disable colored output
+    -h, --help        Show this help message
 
 Examples:
     mvp file.txt /destination/
@@ -41,6 +62,17 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        --no-color)
+            COLOR=false
+            COLOR_RESET=""
+            COLOR_BOLD=""
+            COLOR_RED=""
+            COLOR_GREEN=""
+            COLOR_YELLOW=""
+            COLOR_BLUE=""
+            COLOR_CYAN=""
+            shift
+            ;;
         -h|--help)
             show_help
             exit 0
@@ -53,7 +85,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ ${#ARGS[@]} -lt 2 ]; then
-    echo "Error: Missing arguments"
+    echo "${COLOR_RED}Error: Missing arguments${COLOR_RESET}"
     show_help
     exit 1
 fi
@@ -64,7 +96,7 @@ SOURCES=("${ARGS[@]}")
 
 if [ ${#SOURCES[@]} -gt 1 ] || [ -d "$DEST" ]; then
     if [ ! -d "$DEST" ]; then
-        echo "Error: Destination must be a directory when moving multiple files"
+        echo "${COLOR_RED}Error: Destination must be a directory when moving multiple files${COLOR_RESET}"
         exit 1
     fi
 fi
@@ -136,7 +168,7 @@ move_item() {
     fi
     
     if [ ! -e "$src" ]; then
-        [ "$QUIET" = false ] && echo "Warning: $src does not exist, skipping"
+        [ "$QUIET" = false ] && echo "${COLOR_YELLOW}Warning: $src does not exist, skipping${COLOR_RESET}"
         return 1
     fi
     
@@ -144,21 +176,21 @@ move_item() {
     
     if [ "$PREVIEW" = true ]; then
         local size_fmt=$(format_size $item_size)
-        echo "[PREVIEW] Would move: $src -> $final_dest ($size_fmt)"
+        echo "${COLOR_CYAN}[PREVIEW]${COLOR_RESET} Would move: ${COLOR_BOLD}$src${COLOR_RESET} -> ${COLOR_BOLD}$final_dest${COLOR_RESET} (${COLOR_BLUE}$size_fmt${COLOR_RESET})"
         return 0
     fi
     
     if [ "$QUIET" = false ]; then
         local size_fmt=$(format_size $item_size)
-        echo "Moving: $src -> $final_dest ($size_fmt)"
+        echo "${COLOR_GREEN}Moving:${COLOR_RESET} ${COLOR_BOLD}$src${COLOR_RESET} -> ${COLOR_BOLD}$final_dest${COLOR_RESET} (${COLOR_BLUE}$size_fmt${COLOR_RESET})"
     fi
     
     if same_filesystem "$src" "$(dirname "$final_dest")"; then
-        [ "$VERBOSE" = true ] && echo "  → Same filesystem, instant move"
+        [ "$VERBOSE" = true ] && echo "  ${COLOR_CYAN}→${COLOR_RESET} Same filesystem, instant move"
         mv "$src" "$final_dest"
         PROCESSED_SIZE=$((PROCESSED_SIZE + item_size))
     else
-        [ "$VERBOSE" = true ] && echo "  → Cross-filesystem, copying with progress..."
+        [ "$VERBOSE" = true ] && echo "  ${COLOR_CYAN}→${COLOR_RESET} Cross-filesystem, copying with progress..."
         
         if [ "$QUIET" = true ]; then
             rsync -a --remove-source-files "$src" "$final_dest" 2>/dev/null
@@ -170,7 +202,7 @@ move_item() {
                     local remaining=$((TOTAL_SIZE - PROCESSED_SIZE))
                     local eta=$((remaining / speed))
                     local eta_fmt=$(format_time $eta)
-                    echo "  ETA: $eta_fmt ($(format_size $speed)/s)"
+                    echo "  ${COLOR_YELLOW}ETA:${COLOR_RESET} $eta_fmt (${COLOR_BLUE}$(format_size $speed)/s${COLOR_RESET})"
                 fi
             fi
             
@@ -196,17 +228,17 @@ if [ "$PREVIEW" = false ]; then
     TOTAL_SIZE=$(calculate_total_size)
     
     if [ "$QUIET" = false ]; then
-        echo "Total size to move: $(format_size $TOTAL_SIZE)"
+        echo "${COLOR_BLUE}Total size to move:${COLOR_RESET} ${COLOR_BOLD}$(format_size $TOTAL_SIZE)${COLOR_RESET}"
         echo ""
     fi
 fi
 
 if [ "$PREVIEW" = true ]; then
     TOTAL_SIZE=$(calculate_total_size)
-    echo "========================================="
-    echo "PREVIEW MODE - No files will be moved"
-    echo "Total size: $(format_size $TOTAL_SIZE)"
-    echo "========================================="
+    echo "${COLOR_CYAN}=========================================${COLOR_RESET}"
+    echo "${COLOR_BOLD}PREVIEW MODE - No files will be moved${COLOR_RESET}"
+    echo "${COLOR_BLUE}Total size:${COLOR_RESET} ${COLOR_BOLD}$(format_size $TOTAL_SIZE)${COLOR_RESET}"
+    echo "${COLOR_CYAN}=========================================${COLOR_RESET}"
     echo ""
 fi
 
@@ -224,22 +256,22 @@ if [ "$QUIET" = false ] && [ "$PREVIEW" = false ]; then
     local time_fmt=$(format_time $total_time)
     
     echo ""
-    echo "========================================="
-    echo "Move completed in $time_fmt!"
+    echo "${COLOR_GREEN}=========================================${COLOR_RESET}"
+    echo "${COLOR_BOLD}${COLOR_GREEN}Move completed in $time_fmt!${COLOR_RESET}"
     
     if [ $total_time -gt 0 ]; then
         local avg_speed=$((TOTAL_SIZE / total_time))
-        echo "Average speed: $(format_size $avg_speed)/s"
+        echo "${COLOR_BLUE}Average speed:${COLOR_RESET} ${COLOR_BOLD}$(format_size $avg_speed)/s${COLOR_RESET}"
     fi
     
-    echo "Total: $TOTAL_FILES | Success: $SUCCESS_COUNT | Failed: $FAIL_COUNT"
-    echo "========================================="
+    echo "${COLOR_BLUE}Total:${COLOR_RESET} $TOTAL_FILES | ${COLOR_GREEN}Success:${COLOR_RESET} $SUCCESS_COUNT | ${COLOR_RED}Failed:${COLOR_RESET} $FAIL_COUNT"
+    echo "${COLOR_GREEN}=========================================${COLOR_RESET}"
 elif [ "$PREVIEW" = true ]; then
     echo ""
-    echo "========================================="
-    echo "Preview completed - $TOTAL_FILES items would be moved"
-    echo "Estimated size: $(format_size $TOTAL_SIZE)"
-    echo "========================================="
+    echo "${COLOR_CYAN}=========================================${COLOR_RESET}"
+    echo "${COLOR_BOLD}Preview completed - $TOTAL_FILES items would be moved${COLOR_RESET}"
+    echo "${COLOR_BLUE}Estimated size:${COLOR_RESET} ${COLOR_BOLD}$(format_size $TOTAL_SIZE)${COLOR_RESET}"
+    echo "${COLOR_CYAN}=========================================${COLOR_RESET}"
 fi
 
 exit $([ $FAIL_COUNT -eq 0 ] && echo 0 || echo 1)

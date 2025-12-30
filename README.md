@@ -11,6 +11,7 @@ A smart `mv` replacement that shows progress bars, supports previews, and intell
 - 👁️ **Preview mode** to see what will happen before executing
 - 🔇 **Quiet mode** for silent operations
 - 🔍 **Verbose mode** for detailed operation info
+- 🎨 **Colored output** for better readability (auto-detects terminal support)
 - 🎯 **Wildcard support** (`*.txt`, `file*`, etc.)
 - 🚀 **Smart detection** - instant move on same filesystem, progress on different ones
 - ⏱️ **Time estimation** - ETA and speed calculation
@@ -24,7 +25,7 @@ A smart `mv` replacement that shows progress bars, supports previews, and intell
 
 ```bash
 # Clone the repository
-git clone https://github.com/D4rkL4s3r/mvp.git
+git clone https://github.com/YOUR_USERNAME/mvp.git
 cd mvp
 
 # Run the installation script
@@ -36,14 +37,14 @@ chmod +x install.sh
 
 ```bash
 # Download and run the installer
-curl -fsSL https://raw.githubusercontent.com/D4rkL4s3r/mvp/main/install.sh | bash -s install-remote
+curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/mvp/main/install.sh | bash -s install-remote
 ```
 
 #### Manual Installation
 
 ```bash
 # Download the script
-curl -o mvp https://raw.githubusercontent.com/D4rkL4s3r/mvp/main/mvp
+curl -o mvp https://raw.githubusercontent.com/YOUR_USERNAME/mvp/main/mvp
 
 # Make it executable
 chmod +x mvp
@@ -81,6 +82,7 @@ mvp [options] source(s) destination
 | `-p, --preview` | Preview operations without executing them |
 | `-q, --quiet` | Suppress all output including progress bars |
 | `-v, --verbose` | Show detailed information about operations |
+| `--no-color` | Disable colored output |
 | `-h, --help` | Display help message |
 
 ## 📝 Examples
@@ -142,7 +144,26 @@ mvp -p -v *.mp4 /videos/
 
 # Quiet and verbose (verbose takes precedence for method info)
 mvp -q -v folder/ /backup/
+
+# Disable colors for scripting
+mvp --no-color file.txt /destination/
 ```
+
+## 🎨 Color Output
+
+`mvp` uses colors to make output more readable and informative:
+
+- 🟢 **Green**: Successful operations, "Moving" messages
+- 🔵 **Blue**: Informational data (sizes, speeds)
+- 🟡 **Yellow**: Warnings and ETA
+- 🔴 **Red**: Errors
+- 🔵 **Cyan**: Preview mode and arrows
+- **Bold**: File paths and important information
+
+Colors are automatically disabled when:
+- Output is piped or redirected
+- Terminal doesn't support colors
+- `--no-color` flag is used
 
 ## 🔧 How It Works
 
@@ -215,6 +236,7 @@ Total: 1 | Success: 1 | Failed: 0
 | Preview mode | ❌ | ✅ |
 | Time estimation | ❌ | ✅ |
 | Speed calculation | ❌ | ✅ |
+| Colored output | ❌ | ✅ |
 | Wildcard support | ✅ | ✅ |
 | Verbose output | ⚠️ Limited | ✅ Full |
 
@@ -240,16 +262,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 If you encounter any issues or have questions:
 
-- Open an issue on [GitHub](https://github.com/D4rkL4s3r/mvp/issues)
+- Open an issue on [GitHub](https://github.com/YOUR_USERNAME/mvp/issues)
 - Check existing issues for solutions
 
 ## 🗺️ Roadmap
 
-- [ ] Add color output support
+- [x] Add color output support
 - [ ] Implement parallel transfers for multiple files
 - [ ] Add resume capability for interrupted transfers
 - [ ] Support for remote destinations (SSH)
 - [ ] Configuration file support (~/.mvprc)
+- [ ] Progress bar customization options
 
 ---
 
